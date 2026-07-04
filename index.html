@@ -1,0 +1,498 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Beyond the Dark Portal — Raid Signup</title>
+<!--
+═══════════════════════════════════════════════════════════════════
+  TBC ANNIVERSARY RAID SIGNUP — SETUP (one time, ~3 minutes)
+═══════════════════════════════════════════════════════════════════
+
+  STEP 1 — Create the database table.
+  In your Supabase project (you can reuse the SAME project as your
+  profession tracker), open SQL Editor, paste this, and click Run:
+
+    create table if not exists raid_signups (
+      slug text primary key,
+      name text not null,
+      interested boolean not null,
+      class text,
+      main_spec text,
+      off_spec text,
+      ts bigint
+    );
+    alter table raid_signups enable row level security;
+    create policy "public read"   on raid_signups for select using (true);
+    create policy "public insert" on raid_signups for insert with check (true);
+    create policy "public update" on raid_signups for update using (true);
+    create policy "public delete" on raid_signups for delete using (true);
+
+  STEP 2 — Paste your two Supabase values into HARDCODED below.
+  These are the same two values from your profession tracker file
+  (Project URL + publishable/anon key), so you can copy them straight
+  from that file if you're reusing the project.
+
+  STEP 3 — Rename this file to index.html, upload it to a GitHub repo,
+  and turn on GitHub Pages (Settings → Pages → Deploy from branch →
+  main → root). Same as last time.
+
+  Officer passphrase is set just below HARDCODED.
+═══════════════════════════════════════════════════════════════════
+-->
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@600;700&family=Gantari:wght@400;600&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --gold: #c8a24a;
+    --ink: #d8d2c4;
+    --muted: #8b8577;
+    --faint: #6d6a5f;
+    --card: #121712;
+    --card-border: #26312a;
+    --input-bg: #0b100d;
+    --input-border: #34413a;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    min-height: 100vh;
+    background: radial-gradient(1100px 500px at 50% -10%, #123028 0%, #0c1410 55%, #090d0b 100%);
+    color: var(--ink);
+    font-family: 'Gantari', 'Segoe UI', system-ui, sans-serif;
+    padding: 0 16px 72px;
+  }
+  .shell { max-width: 880px; margin: 0 auto; }
+  header { text-align: center; padding: 56px 0 30px; }
+  .eyebrow {
+    letter-spacing: .32em; text-transform: uppercase;
+    font-size: 11px; color: #7ba05b; margin-bottom: 14px;
+  }
+  h1 {
+    font-family: 'Cinzel', serif;
+    font-size: clamp(30px, 6vw, 52px);
+    font-weight: 700; color: #e9dfc4; margin: 0; line-height: 1.1;
+    text-shadow: 0 2px 24px rgba(123,160,91,.3);
+  }
+  .sub { color: #8f8a7d; margin-top: 12px; font-size: 15px; }
+  .rule {
+    height: 1px; margin: 26px auto 0; max-width: 360px; opacity: .7;
+    background: linear-gradient(90deg, transparent, var(--gold) 30%, var(--gold) 70%, transparent);
+  }
+  .status {
+    display: inline-flex; align-items: center; gap: 7px;
+    margin-top: 18px; font-size: 12.5px; color: var(--muted);
+  }
+  .dot { width: 8px; height: 8px; border-radius: 50%; background: #888; }
+  .dot.ok { background: #7ba05b; box-shadow: 0 0 8px rgba(123,160,91,.8); }
+  .dot.demo { background: #c8a24a; }
+  .dot.err { background: #c05555; }
+
+  .card {
+    background: linear-gradient(180deg, #141a16 0%, #101512 100%);
+    border: 1px solid #2a352c; border-radius: 10px; padding: 26px;
+    box-shadow: 0 12px 40px rgba(0,0,0,.45);
+  }
+  label {
+    display: block; font-size: 11px; letter-spacing: .18em;
+    text-transform: uppercase; color: #9a8f76; margin-bottom: 7px;
+  }
+  input[type=text], input[type=password], select {
+    width: 100%; background: var(--input-bg);
+    border: 1px solid var(--input-border); border-radius: 6px;
+    color: #e6e0d2; padding: 11px 13px; font-size: 15px;
+    outline: none; font-family: inherit;
+  }
+  input:focus, select:focus { border-color: var(--gold); }
+  select { appearance: none; cursor: pointer; }
+  select:disabled { opacity: .45; cursor: not-allowed; }
+  select option { background: var(--input-bg); color: #e6e0d2; }
+  .field { margin-bottom: 18px; }
+  .row { display: flex; gap: 14px; flex-wrap: wrap; }
+  .col { flex: 1 1 200px; min-width: 180px; }
+
+  .choice { display: flex; gap: 10px; }
+  .choice button {
+    flex: 1; padding: 12px 10px; border-radius: 6px; cursor: pointer;
+    font-size: 14px; font-weight: 600; letter-spacing: .04em;
+    font-family: inherit; border: 1px solid var(--input-border);
+    background: #121712; color: var(--muted); transition: all .15s ease;
+  }
+  .choice button.yes.active {
+    border-color: var(--gold); color: #e9d491;
+    background: linear-gradient(180deg,#3a3018,#2b2413);
+  }
+  .choice button.no.active {
+    border-color: #5a4040; color: #c99; background: #241a1a;
+  }
+
+  #submitBtn {
+    width: 100%; margin-top: 22px; padding: 13px; border-radius: 6px;
+    font-family: 'Cinzel', serif; font-weight: 700; font-size: 16px;
+    letter-spacing: .1em; cursor: pointer; transition: all .15s ease;
+    border: 1px solid var(--gold);
+    background: linear-gradient(180deg,#c8a24a,#8f6f2a); color: #171204;
+  }
+  #submitBtn:disabled {
+    cursor: not-allowed; border-color: #3a453d;
+    background: #161c17; color: #565f58;
+  }
+  .notice { margin-top: 14px; font-size: 14px; text-align: center; }
+  .notice.ok { color: #a9d18e; } .notice.err { color: #e08a8a; }
+
+  .role-header {
+    font-family: 'Cinzel', serif; font-size: 20px; color: #e9dfc4;
+    margin: 34px 0 14px; display: flex; align-items: center; gap: 10px;
+  }
+  .role-count {
+    font-family: 'Gantari', sans-serif; font-size: 13px; color: #9a8f76;
+    border: 1px solid #2e3a30; border-radius: 999px; padding: 3px 12px;
+  }
+  .empty-role { color: var(--faint); font-size: 14px; font-style: italic; margin: 0 0 8px; }
+  .roster { display: grid; gap: 10px; }
+  .entry {
+    display: flex; align-items: center; gap: 14px;
+    background: var(--card); border: 1px solid var(--card-border);
+    border-radius: 8px; padding: 13px 16px;
+  }
+  .crest {
+    width: 38px; height: 38px; border-radius: 50%; flex-shrink: 0;
+    display: flex; align-items: center; justify-content: center; font-size: 16px;
+  }
+  .entry .info { flex: 1; min-width: 0; }
+  .entry .name { font-weight: 600; font-size: 16px; color: #ece6d6; }
+  .entry .spec { font-size: 13.5px; margin-top: 2px; }
+  .entry .off { color: var(--muted); }
+  .remove-btn {
+    background: none; border: 1px solid #4a3030; border-radius: 4px;
+    color: #c07d7d; cursor: pointer; font-size: 13px; padding: 4px 9px;
+    font-family: inherit; flex-shrink: 0;
+  }
+  .declined-title {
+    font-family: 'Cinzel', serif; font-size: 16px;
+    color: #9a9484; margin: 34px 0 14px;
+  }
+  .pills { display: flex; gap: 8px; flex-wrap: wrap; }
+  .pill {
+    display: flex; align-items: center; gap: 8px;
+    border: 1px solid var(--card-border); background: #101410;
+    border-radius: 999px; padding: 6px 14px; font-size: 13.5px; color: var(--muted);
+  }
+  .pill button { background: none; border: none; color: #c07d7d; cursor: pointer; font-size: 13px; }
+
+  .officer { margin-top: 48px; text-align: center; }
+  .officer .link {
+    background: none; border: none; color: #5f6b5f; cursor: pointer;
+    font-size: 13px; text-decoration: underline; font-family: inherit;
+  }
+  .officer-box { display: inline-flex; gap: 8px; align-items: center; flex-wrap: wrap; justify-content: center; }
+  .officer-box input { width: 220px; }
+  .officer-box .unlock {
+    background: #1a221b; color: var(--gold); font-weight: 600; cursor: pointer;
+    border: 1px solid var(--input-border); border-radius: 6px;
+    padding: 11px 16px; font-size: 15px; font-family: inherit;
+  }
+  .officer-active { font-size: 13px; color: #7ba05b; }
+  .pass-err { color: #e08a8a; font-size: 13px; width: 100%; }
+  .hidden { display: none !important; }
+</style>
+</head>
+<body>
+<div class="shell">
+
+  <header>
+    <div class="eyebrow">TBC Anniversary · Guild Interest Check</div>
+    <h1>Beyond the Dark Portal</h1>
+    <p class="sub">Tell us if you're raiding — and what you'll bring through the portal.<br>Signups are visible to everyone in the guild.</p>
+    <div class="rule"></div>
+    <div class="status"><span class="dot" id="statusDot"></span><span id="statusText">Connecting…</span></div>
+  </header>
+
+  <section class="card">
+    <div class="field">
+      <label for="nameInput">Character name</label>
+      <input type="text" id="nameInput" placeholder="e.g. Thundermoo" maxlength="24">
+    </div>
+
+    <div class="field">
+      <label>Are you interested in raiding?</label>
+      <div class="choice">
+        <button type="button" class="yes" id="yesBtn">⚔ &nbsp;I'm in</button>
+        <button type="button" class="no" id="noBtn">Not this time</button>
+      </div>
+    </div>
+
+    <div class="row hidden" id="specRow">
+      <div class="col">
+        <label for="classSel">Class</label>
+        <select id="classSel"><option value="">Choose class</option></select>
+      </div>
+      <div class="col">
+        <label for="mainSel">Main spec</label>
+        <select id="mainSel" disabled><option value="">Choose spec</option></select>
+      </div>
+      <div class="col">
+        <label for="offSel">Off spec (optional)</label>
+        <select id="offSel" disabled><option value="">None</option></select>
+      </div>
+    </div>
+
+    <button id="submitBtn" disabled>Sign the Roster</button>
+    <div class="notice hidden" id="notice"></div>
+  </section>
+
+  <div id="rosterArea"></div>
+
+  <div class="officer" id="officerArea">
+    <button class="link" id="officerLink">Officer access</button>
+    <div class="officer-box hidden" id="officerBox">
+      <input type="password" id="passInput" placeholder="Officer passphrase">
+      <button class="unlock" id="unlockBtn">Unlock</button>
+      <span class="pass-err hidden" id="passErr">That's not it. Whisper an officer if you've forgotten it.</span>
+    </div>
+    <div class="officer-active hidden" id="officerActive">
+      🗝 Officer mode active — remove buttons are visible.
+      <button class="link" id="lockBtn">Lock</button>
+    </div>
+  </div>
+
+</div>
+
+<script>
+// ══════════════ CONFIG — the only part you edit ══════════════
+const HARDCODED = {
+  url: "",      // e.g. "https://abcdefgh.supabase.co"
+  anonKey: ""   // your publishable / anon key
+};
+const OFFICER_PASSPHRASE = "Hogwarts";
+// ═════════════════════════════════════════════════════════════
+
+const CLASSES = {
+  "Druid":   { color: "#FF7C0A", specs: ["Balance", "Feral (Bear)", "Feral (Cat)", "Restoration"] },
+  "Hunter":  { color: "#AAD372", specs: ["Beast Mastery", "Marksmanship", "Survival"] },
+  "Mage":    { color: "#3FC7EB", specs: ["Arcane", "Fire", "Frost"] },
+  "Paladin": { color: "#F48CBA", specs: ["Holy", "Protection", "Retribution"] },
+  "Priest":  { color: "#FFFFFF", specs: ["Discipline", "Holy", "Shadow"] },
+  "Rogue":   { color: "#FFF468", specs: ["Assassination", "Combat", "Subtlety"] },
+  "Shaman":  { color: "#0070DD", specs: ["Elemental", "Enhancement", "Restoration"] },
+  "Warlock": { color: "#8788EE", specs: ["Affliction", "Demonology", "Destruction"] },
+  "Warrior": { color: "#C69B6D", specs: ["Arms", "Fury", "Protection"] },
+};
+const TANKS = new Set(["Druid:Feral (Bear)", "Paladin:Protection", "Warrior:Protection"]);
+const HEALS = new Set(["Druid:Restoration", "Paladin:Holy", "Priest:Discipline", "Priest:Holy", "Shaman:Restoration"]);
+const ROLE_ICON = { Tank: "🛡", Healer: "✚", DPS: "⚔" };
+const ROLE_ORDER = ["Tank", "Healer", "DPS"];
+
+const roleOf = (cls, spec) => TANKS.has(cls + ":" + spec) ? "Tank" : HEALS.has(cls + ":" + spec) ? "Healer" : "DPS";
+const slugify = (n) => n.trim().toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "");
+const esc = (s) => String(s).replace(/[&<>"']/g, c => ({ "&":"&amp;", "<":"&lt;", ">":"&gt;", '"':"&quot;", "'":"&#39;" }[c]));
+
+// ---------- data layer (Supabase or demo mode) ----------
+let db = null;
+let demoStore = {};
+const demoMode = !HARDCODED.url || !HARDCODED.anonKey;
+
+if (!demoMode) {
+  db = supabase.createClient(HARDCODED.url, HARDCODED.anonKey);
+}
+
+async function fetchAll() {
+  if (demoMode) return Object.values(demoStore);
+  const { data, error } = await db.from("raid_signups").select("*");
+  if (error) throw error;
+  return data;
+}
+async function saveEntry(entry) {
+  if (demoMode) { demoStore[entry.slug] = entry; return; }
+  const { error } = await db.from("raid_signups").upsert(entry);
+  if (error) throw error;
+}
+async function deleteEntry(slug) {
+  if (demoMode) { delete demoStore[slug]; return; }
+  const { error } = await db.from("raid_signups").delete().eq("slug", slug);
+  if (error) throw error;
+}
+
+// ---------- state ----------
+let entries = [];
+let interested = null;
+let officerMode = false;
+
+// ---------- elements ----------
+const $ = (id) => document.getElementById(id);
+const nameInput = $("nameInput"), yesBtn = $("yesBtn"), noBtn = $("noBtn"),
+      specRow = $("specRow"), classSel = $("classSel"), mainSel = $("mainSel"),
+      offSel = $("offSel"), submitBtn = $("submitBtn"), notice = $("notice"),
+      rosterArea = $("rosterArea"), statusDot = $("statusDot"), statusText = $("statusText");
+
+// ---------- form logic ----------
+Object.keys(CLASSES).forEach(c => classSel.add(new Option(c, c)));
+
+function fillSpecs() {
+  const cls = classSel.value;
+  mainSel.innerHTML = '<option value="">Choose spec</option>';
+  offSel.innerHTML = '<option value="">None</option>';
+  mainSel.disabled = !cls;
+  offSel.disabled = true;
+  if (cls) CLASSES[cls].specs.forEach(s => mainSel.add(new Option(s, s)));
+  updateSubmit();
+}
+function fillOffSpecs() {
+  const cls = classSel.value, main = mainSel.value;
+  offSel.innerHTML = '<option value="">None</option>';
+  offSel.disabled = !main;
+  if (cls && main) CLASSES[cls].specs.filter(s => s !== main).forEach(s => offSel.add(new Option(s, s)));
+  updateSubmit();
+}
+function updateSubmit() {
+  const ok = nameInput.value.trim().length > 0 && interested !== null &&
+    (interested === false || (classSel.value && mainSel.value));
+  submitBtn.disabled = !ok;
+}
+function setInterest(val) {
+  interested = val;
+  yesBtn.classList.toggle("active", val === true);
+  noBtn.classList.toggle("active", val === false);
+  specRow.classList.toggle("hidden", val !== true);
+  if (val === false) { classSel.value = ""; fillSpecs(); }
+  updateSubmit();
+}
+function showNotice(kind, text) {
+  notice.className = "notice " + kind;
+  notice.textContent = text;
+}
+
+yesBtn.onclick = () => setInterest(true);
+noBtn.onclick = () => setInterest(false);
+classSel.onchange = fillSpecs;
+mainSel.onchange = fillOffSpecs;
+nameInput.oninput = updateSubmit;
+offSel.onchange = updateSubmit;
+
+submitBtn.onclick = async () => {
+  const entry = {
+    slug: slugify(nameInput.value),
+    name: nameInput.value.trim(),
+    interested: interested,
+    class: interested ? classSel.value : null,
+    main_spec: interested ? mainSel.value : null,
+    off_spec: interested && offSel.value ? offSel.value : null,
+    ts: Date.now(),
+  };
+  submitBtn.disabled = true;
+  submitBtn.textContent = "Saving…";
+  try {
+    await saveEntry(entry);
+    showNotice("ok", entry.name + " added to the roster." + (demoMode ? " (Demo mode — not actually saved.)" : ""));
+    nameInput.value = ""; setInterest(null);
+    classSel.value = ""; fillSpecs();
+    await refresh();
+  } catch (e) {
+    showNotice("err", "Couldn't save your signup. Try again.");
+  } finally {
+    submitBtn.textContent = "Sign the Roster";
+    updateSubmit();
+  }
+};
+
+// ---------- roster rendering ----------
+function render() {
+  const raiders = entries.filter(e => e.interested).sort((a, b) => a.ts - b.ts);
+  const declined = entries.filter(e => !e.interested).sort((a, b) => a.ts - b.ts);
+  let html = "";
+
+  if (raiders.length === 0) {
+    html += '<p style="color:var(--muted);margin-top:36px">No raiders yet. Be the first to sign up above.</p>';
+  } else {
+    const groups = { Tank: [], Healer: [], DPS: [] };
+    raiders.forEach(e => groups[roleOf(e.class, e.main_spec)].push(e));
+    for (const role of ROLE_ORDER) {
+      html += `<h2 class="role-header"><span>${ROLE_ICON[role]}</span>${role === "DPS" ? "DPS" : role + "s"}<span class="role-count">${groups[role].length}</span></h2>`;
+      if (groups[role].length === 0) {
+        html += '<p class="empty-role">None yet — recruiters, get to work.</p>';
+      } else {
+        html += '<div class="roster">' + groups[role].map(e => {
+          const color = (CLASSES[e.class] || {}).color || "#888";
+          const off = e.off_spec
+            ? ` <span class="off">· off spec: ${esc(e.off_spec)} (${roleOf(e.class, e.off_spec)})</span>` : "";
+          const removeBtn = officerMode
+            ? `<button class="remove-btn" data-slug="${esc(e.slug)}">✕ Remove</button>` : "";
+          return `<div class="entry" style="border-left:4px solid ${color}">
+            <div class="crest" style="background:${color}22;border:1px solid ${color}">${ROLE_ICON[roleOf(e.class, e.main_spec)]}</div>
+            <div class="info">
+              <div class="name">${esc(e.name)}</div>
+              <div class="spec"><span style="color:${color}">${esc(e.main_spec)} ${esc(e.class)}</span>${off}</div>
+            </div>${removeBtn}</div>`;
+        }).join("") + "</div>";
+      }
+    }
+  }
+
+  if (declined.length > 0) {
+    html += `<h2 class="declined-title">Sitting this one out (${declined.length})</h2><div class="pills">` +
+      declined.map(e =>
+        `<div class="pill">${esc(e.name)}${officerMode ? `<button data-slug="${esc(e.slug)}">✕</button>` : ""}</div>`
+      ).join("") + "</div>";
+  }
+
+  rosterArea.innerHTML = html;
+  rosterArea.querySelectorAll("[data-slug]").forEach(btn => {
+    btn.onclick = async () => {
+      if (!officerMode) return;
+      try { await deleteEntry(btn.dataset.slug); await refresh(); }
+      catch (e) { showNotice("err", "Couldn't remove that entry. Try again."); }
+    };
+  });
+}
+
+async function refresh() {
+  try {
+    entries = await fetchAll();
+    render();
+    if (demoMode) {
+      statusDot.className = "dot demo";
+      statusText.textContent = "Demo mode — add your Supabase keys to save signups";
+    } else {
+      statusDot.className = "dot ok";
+      statusText.textContent = "Connected — roster is live";
+    }
+  } catch (e) {
+    statusDot.className = "dot err";
+    statusText.textContent = "Can't reach the database — check your keys and table";
+  }
+}
+
+// ---------- officer mode ----------
+$("officerLink").onclick = () => {
+  $("officerLink").classList.add("hidden");
+  $("officerBox").classList.remove("hidden");
+  $("passInput").focus();
+};
+function tryUnlock() {
+  if ($("passInput").value === OFFICER_PASSPHRASE) {
+    officerMode = true;
+    $("officerBox").classList.add("hidden");
+    $("officerActive").classList.remove("hidden");
+    $("passInput").value = "";
+    $("passErr").classList.add("hidden");
+    render();
+  } else {
+    $("passErr").classList.remove("hidden");
+  }
+}
+$("unlockBtn").onclick = tryUnlock;
+$("passInput").onkeydown = (e) => { if (e.key === "Enter") tryUnlock(); $("passErr").classList.add("hidden"); };
+$("lockBtn").onclick = () => {
+  officerMode = false;
+  $("officerActive").classList.add("hidden");
+  $("officerLink").classList.remove("hidden");
+  render();
+};
+
+// ---------- go ----------
+refresh();
+setInterval(refresh, 20000); // pick up guildmates' signups every 20s
+</script>
+</body>
+</html>
